@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#FBF8F1">
     <meta name="color-scheme" content="light">
-    <meta name="description" content="用五分钟，看见此刻生活里的五个幸福维度。">
-    <title>幸福自检 · 纸境</title>
+    <meta name="description" content="幸福驾校：从自我状态、夫妻同行到亲子上路，完成三科幸福自检。">
+    <title>幸福驾校 · 幸福自检</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23B03A2E'/%3E%3Ctext x='32' y='45' font-size='38' text-anchor='middle' fill='%23FBF8F1' font-family='Songti SC, serif'%3E幸%3C/text%3E%3C/svg%3E">
     <link rel="stylesheet" href="./style.css">
+    <script src="./subjects.js" defer></script>
     <script src="./app.js" defer></script>
   </head>
   <body data-screen="home">
@@ -25,207 +27,291 @@
     <div class="ambient ambient--gilt" aria-hidden="true"></div>
 
     <main class="app-shell" id="app">
-      <!-- 卷一 · 起 -->
-      <section class="screen screen--home is-active" data-screen="home" aria-labelledby="home-title">
+      <!-- 驾校堂前 · 科目选择 -->
+      <section class="screen screen--home screen--scroll is-active" data-screen="home" aria-labelledby="home-title">
         <header class="home-header">
-          <a class="brand-lockup" href="#" aria-label="幸福自检首页" data-action="home">
+          <div class="brand-lockup" aria-label="幸福驾校">
             <span class="brand-seal" aria-hidden="true">幸</span>
-            <span>幸福自检</span>
-          </a>
-          <span class="edition">PERMA · 纸境</span>
+            <span>幸福驾校</span>
+          </div>
+          <span class="edition">父母驾校 · 幸福驾照</span>
         </header>
 
-        <div class="home-core">
-          <span class="vertical-note" aria-hidden="true">一屏一念<i>观</i></span>
-
-          <div class="ink-court" aria-hidden="true">
-            <svg viewBox="0 0 320 250" role="presentation">
-              <defs>
-                <radialGradient id="inkPool" cx="50%" cy="44%" r="62%">
-                  <stop offset="0%" stop-color="#2B2620" stop-opacity="0.4"></stop>
-                  <stop offset="52%" stop-color="#41585A" stop-opacity="0.18"></stop>
-                  <stop offset="100%" stop-color="#41585A" stop-opacity="0"></stop>
-                </radialGradient>
-                <filter id="inkBlur" x="-40%" y="-40%" width="180%" height="180%">
-                  <feGaussianBlur stdDeviation="9"></feGaussianBlur>
-                </filter>
-              </defs>
-              <ellipse class="ink-court__pool" cx="160" cy="110" rx="88" ry="60" fill="url(#inkPool)" filter="url(#inkBlur)"></ellipse>
-              <ellipse cx="206" cy="146" rx="38" ry="20" fill="#2B2620" opacity="0.1" filter="url(#inkBlur)"></ellipse>
-              <ellipse cx="114" cy="82" rx="20" ry="11" fill="#2B2620" opacity="0.08" filter="url(#inkBlur)"></ellipse>
-              <path d="M64 188H256" fill="none" stroke="#B89B5E" stroke-opacity="0.6" stroke-width="0.8"></path>
-              <circle cx="160" cy="188" r="2.6" fill="#B03A2E"></circle>
-            </svg>
+        <div class="driving-home-hero">
+          <div class="driving-home-hero__mark" aria-hidden="true">
+            <span>驾</span>
           </div>
-
-          <div class="home-copy">
-            <p class="eyebrow">给此刻的自己，一次诚实的停留</p>
-            <h1 id="home-title" tabindex="-1">幸福自检</h1>
-            <p class="home-value">五分钟，像研一次墨，<br>看清你此刻的幸福状态</p>
-          </div>
+          <p class="eyebrow">幸福自检 · 三科目</p>
+          <h1 id="home-title" tabindex="-1">幸福驾校</h1>
+          <p>先看见自己，再看看并肩的人，<br>也看看一起带孩子走的这段路。</p>
         </div>
 
-        <div class="home-bottom">
-          <p class="resume-note" id="resumeNote" hidden></p>
-          <button class="primary-button" id="startButton" type="button">
-            <span id="startButtonLabel">开始自检</span>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 12h13m-5-5 5 5-5 5"></path>
-            </svg>
-          </button>
-          <button class="text-button" id="restartButton" type="button" hidden>重新开始</button>
-          <p class="disclaimer">本测评仅用于生活状态的自我观察，不替代专业支持或个性化建议。</p>
+        <div class="subject-list" aria-label="请选择测评科目">
+          <article class="subject-card" id="s1SubjectCard" data-subject-card="s1">
+            <header class="subject-card__header">
+              <div>
+                <p>科目一</p>
+                <h2>自我状态</h2>
+              </div>
+              <span class="subject-seal" aria-hidden="true">壹</span>
+            </header>
+            <p class="subject-card__meta">PERMA 15 题 · 约 5 分钟</p>
+            <div class="subject-card__status">
+              <span class="status-badge" id="s1Status">未开始</span>
+              <strong id="s1Score" hidden></strong>
+            </div>
+            <div class="subject-card__actions">
+              <button class="subject-action subject-action--primary" type="button" data-subject="s1" data-subject-action="primary">
+                <span id="s1ActionLabel">开始科目一</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13m-5-5 5 5-5 5"></path></svg>
+              </button>
+              <button class="subject-action subject-action--secondary" type="button" data-subject="s1" data-subject-action="retake" hidden>重测</button>
+            </div>
+          </article>
+
+          <article class="subject-card" id="s2SubjectCard" data-subject-card="s2">
+            <header class="subject-card__header">
+              <div>
+                <p>科目二</p>
+                <h2>夫妻同行</h2>
+              </div>
+              <span class="subject-seal" aria-hidden="true">贰</span>
+            </header>
+            <p class="subject-card__meta">12 题 · 约 4 分钟</p>
+            <div class="subject-card__status">
+              <span class="status-badge" id="s2Status">未开始</span>
+              <strong id="s2Score" hidden></strong>
+            </div>
+            <div class="subject-card__actions">
+              <button class="subject-action subject-action--primary" type="button" data-subject="s2" data-subject-action="primary">
+                <span id="s2ActionLabel">开始科目二</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13m-5-5 5 5-5 5"></path></svg>
+              </button>
+              <button class="subject-action subject-action--secondary" type="button" data-subject="s2" data-subject-action="retake" hidden>重测</button>
+            </div>
+          </article>
+
+          <article class="subject-card" id="s3SubjectCard" data-subject-card="s3">
+            <header class="subject-card__header">
+              <div>
+                <p>科目三</p>
+                <h2>亲子上路</h2>
+              </div>
+              <span class="subject-seal" aria-hidden="true">叁</span>
+            </header>
+            <p class="subject-card__meta">12 题 · 约 4 分钟</p>
+            <div class="subject-card__status">
+              <span class="status-badge" id="s3Status">未开始</span>
+              <strong id="s3Score" hidden></strong>
+            </div>
+            <div class="subject-card__actions">
+              <button class="subject-action subject-action--primary" type="button" data-subject="s3" data-subject-action="primary">
+                <span id="s3ActionLabel">开始科目三</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13m-5-5 5 5-5 5"></path></svg>
+              </button>
+              <button class="subject-action subject-action--secondary" type="button" data-subject="s3" data-subject-action="retake" hidden>重测</button>
+            </div>
+          </article>
         </div>
+
+        <section class="license-entry" id="licenseEntry" aria-labelledby="license-entry-title" hidden>
+          <span class="license-entry__seal" aria-hidden="true">领</span>
+          <div>
+            <p class="eyebrow">两科已完成</p>
+            <h2 id="license-entry-title">领取幸福驾照</h2>
+            <p>把夫妻同行与亲子上路，合成一张值得留存的家庭驾驶证。</p>
+          </div>
+          <button class="cinnabar-button" id="licenseButton" type="button">现在领证</button>
+        </section>
+
+        <p class="disclaimer driving-disclaimer">本测评仅用于生活状态的自我观察，不替代专业支持或个性化建议。</p>
       </section>
 
-      <!-- 卷二 · 问 -->
+      <!-- 科目一 · 问 -->
       <section class="screen screen--quiz" data-screen="quiz" aria-labelledby="questionText" hidden>
         <header class="quiz-header">
           <button class="icon-button" id="quizBackButton" type="button" aria-label="返回上一题">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m15 18-6-6 6-6"></path>
-            </svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
           </button>
+          <span class="quiz-subject">科目一 · 自我状态</span>
           <div class="quiz-count" aria-label="测评进度">
-            <span id="questionNumber">01</span>
-            <span class="quiz-count__total">/ 15</span>
+            <span id="questionNumber">01</span><span class="quiz-count__total">/ 15</span>
           </div>
         </header>
-
-        <div class="progress-line" aria-hidden="true">
-          <span id="quizProgress"></span>
-        </div>
-
+        <div class="progress-line" aria-hidden="true"><span id="quizProgress"></span></div>
         <div class="question-stage" id="questionStage">
           <div class="question-copy">
             <p class="eyebrow" id="questionDimension">P · 积极情绪</p>
             <h2 id="questionText" tabindex="-1">最近一周，有没有哪个瞬间让你真心笑出来？</h2>
           </div>
-
           <div class="scale-block">
             <div class="scale-options" id="scaleOptions" role="group" aria-labelledby="questionText"></div>
-            <div class="scale-ends" aria-hidden="true">
-              <span>完全没有</span>
-              <span>非常频繁</span>
-            </div>
+            <div class="scale-ends" aria-hidden="true"><span>完全没有</span><span>非常频繁</span></div>
             <p class="scale-hint" id="scaleHint" aria-live="polite">选择后自动进入下一题</p>
           </div>
         </div>
       </section>
 
-      <!-- 卷三 · 鉴 -->
+      <!-- 科目一 · 鉴 -->
       <section class="screen screen--scroll" data-screen="result" aria-labelledby="result-title" hidden>
         <header class="screen-nav">
-          <button class="nav-wordmark" type="button" data-action="home" aria-label="回到首页">
-            <span class="brand-seal" aria-hidden="true">幸</span>
-            <span>幸福自检</span>
+          <button class="nav-wordmark" type="button" data-action="home" aria-label="回到科目选择">
+            <span class="brand-seal" aria-hidden="true">幸</span><span>幸福驾校</span>
           </button>
-          <span class="screen-nav__meta">你的报告</span>
+          <span class="screen-nav__meta">科目一 · 报告</span>
         </header>
-
         <div class="result-hero">
           <p class="eyebrow">此刻的幸福指数</p>
           <div class="score-lockup" aria-label="幸福指数">
-            <output id="totalScore">0</output>
-            <span>/ 100</span>
-            <i class="result-seal" aria-hidden="true">鉴</i>
+            <output id="totalScore">0</output><span>/ 100</span><i class="result-seal" aria-hidden="true">鉴</i>
           </div>
           <h1 id="result-title" tabindex="-1">先看见此刻，不急着得出结论。</h1>
           <p id="resultSummary">五个维度里，有几处最近出现得更少。先不用急着做什么，看看它们在哪里。</p>
         </div>
-
         <figure class="radar-figure" aria-labelledby="radar-caption">
           <div class="radar-aura" aria-hidden="true"></div>
           <svg id="radarChart" viewBox="0 0 320 320" role="img" aria-label="五维幸福状态雷达图"></svg>
           <figcaption id="radar-caption">越靠近外圈，代表这一维度最近出现得越频繁</figcaption>
         </figure>
-
         <section class="dimension-section" aria-labelledby="dimension-title">
-          <div class="section-heading">
-            <p class="eyebrow">五个方向</p>
-            <h2 id="dimension-title">哪里稳住了，<br>哪里还需要照看</h2>
-          </div>
+          <div class="section-heading"><p class="eyebrow">五个方向</p><h2 id="dimension-title">哪里稳住了，<br>哪里还需要照看</h2></div>
           <div class="dimension-list" id="dimensionInsights"></div>
         </section>
-
         <div class="result-actions">
           <button class="primary-button" id="viewPlanButton" type="button">
-            <span>查看 7 天微训练</span>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 12h13m-5-5 5 5-5 5"></path>
-            </svg>
+            <span>查看 7 天微训练</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13m-5-5 5 5-5 5"></path></svg>
           </button>
           <button class="text-button" id="retakeButton" type="button">重新自检</button>
         </div>
       </section>
 
-      <!-- 卷四 · 习 -->
-      <section class="screen screen--scroll screen--plan" data-screen="plan" aria-labelledby="plan-title" hidden>
-        <header class="screen-nav">
-          <button class="icon-button" id="planBackButton" type="button" aria-label="返回报告">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m15 18-6-6 6-6"></path>
-            </svg>
+      <!-- 科目二 / 三 · 问 -->
+      <section class="screen screen--driving-quiz" data-screen="driving-quiz" aria-labelledby="drivingQuestionText" hidden>
+        <header class="quiz-header driving-quiz-header">
+          <button class="icon-button" id="drivingQuizBackButton" type="button" aria-label="返回上一题">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
           </button>
-          <span class="screen-nav__meta">为你推荐</span>
+          <span class="quiz-subject" id="drivingSubjectLabel">科目二 · 夫妻同行</span>
+          <div class="quiz-count" aria-label="测评进度">
+            <span id="drivingQuestionNumber">01</span><span class="quiz-count__total">/ 12</span>
+          </div>
         </header>
-
-        <div class="plan-hero">
-          <p class="eyebrow" id="planKicker">重新看见</p>
-          <h1 id="plan-title" tabindex="-1"><span id="planName">心态</span><br>7 天微训练</h1>
-          <p id="planDescription">七天里，每天拿出不超过五分钟，把注意力放回真正重要的地方。</p>
-          <div class="plan-rule">
-            <span>7 DAYS</span>
-            <span>每天 ≤ 5 分钟</span>
+        <div class="progress-line" aria-hidden="true"><span id="drivingQuizProgress"></span></div>
+        <div class="driving-question-stage" id="drivingQuestionStage">
+          <div class="driving-question-copy">
+            <p class="eyebrow" id="drivingQuestionDimension">A1 · 情感连接</p>
+            <h1 id="drivingQuestionText" tabindex="-1">TA出门或回家时，你们之间有没有一句道别、一个迎接？</h1>
+          </div>
+          <div class="driving-options" id="drivingOptions" role="radiogroup" aria-labelledby="drivingQuestionText"></div>
+          <div class="driving-question-foot">
+            <p id="drivingQuestionHint" aria-live="polite">选择后 250ms 自动进入下一题</p>
+            <p id="drivingQuestionSource"></p>
           </div>
         </div>
+      </section>
 
+      <!-- 科目二 / 三 · 报告 -->
+      <section class="screen screen--scroll screen--driving-result" data-screen="driving-result" aria-labelledby="driving-result-title" hidden>
+        <header class="screen-nav">
+          <button class="nav-wordmark" type="button" data-action="home" aria-label="回到科目选择">
+            <span class="brand-seal" aria-hidden="true">幸</span><span>幸福驾校</span>
+          </button>
+          <span class="screen-nav__meta" id="drivingResultMeta">科目二 · 报告</span>
+        </header>
+        <div class="driving-result-hero">
+          <p class="eyebrow" id="drivingResultKicker">夫妻同行 · 本次科目分</p>
+          <div class="driving-score-lockup">
+            <output id="drivingTotalScore">0</output><span>/ 100</span><i aria-hidden="true">鉴</i>
+          </div>
+          <h1 id="driving-result-title" tabindex="-1">这段路，先看清哪里最需要补练。</h1>
+          <p id="drivingResultSummary">分数不是结论，它把具体动作照得更清楚。</p>
+        </div>
+
+        <section class="score-bars-section" aria-labelledby="driving-bars-title">
+          <div class="section-heading compact-heading"><p class="eyebrow">三个路段</p><h2 id="driving-bars-title">分开看，才知道从哪儿练</h2></div>
+          <div class="driving-dimension-bars" id="drivingDimensionBars"></div>
+        </section>
+
+        <aside class="breakthrough-card" aria-labelledby="driving-insight-title">
+          <span class="breakthrough-card__seal" aria-hidden="true">点</span>
+          <p class="eyebrow" id="drivingWeakLabel">最弱子维度</p>
+          <h2 id="driving-insight-title">一句点破</h2>
+          <p id="drivingWeakInsight"></p>
+        </aside>
+
+        <section class="deduction-section" aria-labelledby="driving-deduction-title">
+          <div class="section-heading compact-heading"><p class="eyebrow">本次扣分项</p><h2 id="driving-deduction-title">不绕弯，逐条看</h2></div>
+          <ul class="deduction-list" id="drivingDeductionList"></ul>
+          <p class="empty-note" id="drivingDeductionEmpty" hidden>本次没有 0 分项，继续守住这些具体做法。</p>
+        </section>
+
+        <section class="hazard-section" id="drivingHazardSection" aria-labelledby="driving-hazard-title">
+          <div class="hazard-light" id="drivingHazardLight" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div>
+            <p class="eyebrow">危险驾驶红灯</p>
+            <h2 id="driving-hazard-title">高风险动作单独看</h2>
+            <ul id="drivingHazardList"></ul>
+            <p class="hazard-clear" id="drivingHazardClear">本次未亮红灯。</p>
+          </div>
+        </section>
+
+        <div class="result-actions driving-result-actions">
+          <button class="primary-button" id="drivingPlanButton" type="button">
+            <span>开始 7 天陪练</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13m-5-5 5 5-5 5"></path></svg>
+          </button>
+          <button class="text-button" id="drivingRetakeButton" type="button">重新测这一科</button>
+        </div>
+      </section>
+
+      <!-- 六维共用 · 习 -->
+      <section class="screen screen--scroll screen--plan" data-screen="plan" aria-labelledby="plan-title" hidden>
+        <header class="screen-nav">
+          <button class="icon-button" id="planBackButton" type="button" aria-label="回到科目选择">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+          </button>
+          <span class="screen-nav__meta" id="planNavMeta">为你推荐</span>
+        </header>
+        <div class="plan-hero">
+          <p class="eyebrow" id="planKicker">重新看见</p>
+          <h1 id="plan-title" tabindex="-1"><span id="planName">心态</span><br><span id="planTypeLabel">7 天微训练</span></h1>
+          <p id="planDescription">七天里，每天拿出不超过五分钟，把注意力放回真正重要的地方。</p>
+          <div class="plan-rule"><span>7 DAYS</span><span>每天 ≤ 5 分钟</span></div>
+        </div>
         <div class="timeline" id="trainingTimeline" aria-label="七天训练计划"></div>
-
         <p class="plan-footnote">不用补课，也不用追赶。哪一天想起来，就从那一天继续。</p>
       </section>
 
-      <!-- 卷五 · 息 -->
+      <!-- 共用 · 息 -->
       <section class="screen screen--breathe" data-screen="breathe" aria-labelledby="breathe-title" hidden>
         <header class="breathe-header">
-          <span>DAY 01 · 呼吸内观</span>
-          <button class="icon-button" id="closeBreatheButton" type="button" aria-label="退出练习">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M6 6l12 12M18 6 6 18"></path>
-            </svg>
+          <span>DAY 01 · 呼吸练习</span>
+          <button class="icon-button" id="closeBreatheButton" type="button" aria-label="退出练习，回到科目选择">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
           </button>
         </header>
-
         <div class="breathe-copy">
           <p class="eyebrow">把这一分钟还给自己</p>
           <h1 id="breathe-title" tabindex="-1">肩膀松一点，<br>让呼吸像墨，慢慢晕开。</h1>
         </div>
-
         <div class="breath-orbit" id="breathOrbit" aria-live="polite">
           <span class="breath-orbit__ring" aria-hidden="true"></span>
           <span class="breath-orbit__halo" aria-hidden="true"></span>
           <span class="breath-orbit__blot" aria-hidden="true"></span>
           <strong id="breathPhase">准备</strong>
         </div>
-
         <div class="breath-controls">
           <time id="breathCountdown" datetime="PT1M">01:00</time>
           <p id="breathPattern">吸气 4 秒 · 屏息 2 秒 · 呼气 6 秒</p>
           <button class="primary-button primary-button--quiet" id="startBreathButton" type="button">
-            <span>开始 60 秒</span>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m9 7 7 5-7 5Z"></path>
-            </svg>
+            <span>开始 60 秒</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7 7 5-7 5Z"></path></svg>
           </button>
         </div>
       </section>
 
-      <!-- 卷终 · 记 -->
+      <!-- 共用 · 记 -->
       <section class="screen screen--complete" data-screen="complete" aria-labelledby="complete-title" hidden>
         <div class="complete-mark" aria-hidden="true">
-          <svg viewBox="0 0 180 180">
-            <circle cx="90" cy="90" r="62" pathLength="1"></circle>
-          </svg>
+          <svg viewBox="0 0 180 180"><circle cx="90" cy="90" r="62" pathLength="1"></circle></svg>
           <span class="complete-seal">记</span>
         </div>
         <div class="complete-copy">
@@ -235,13 +321,59 @@
         </div>
         <div class="complete-bottom">
           <p>不必一次走很远。<br>能回来这一分钟，就已经很好。</p>
-          <button class="line-button" id="backToPlanButton" type="button">回到七天计划</button>
+          <button class="line-button" id="backToPlanButton" type="button">回到科目选择</button>
         </div>
       </section>
 
-      <noscript>
-        <p class="noscript">请启用浏览器脚本后再开始自检。</p>
-      </noscript>
+      <!-- 幸福驾照 · 领证 -->
+      <section class="screen screen--scroll screen--license" data-screen="license" aria-labelledby="license-title" hidden>
+        <header class="screen-nav">
+          <button class="nav-wordmark" type="button" data-action="home" aria-label="回到科目选择">
+            <span class="brand-seal" aria-hidden="true">幸</span><span>幸福驾校</span>
+          </button>
+          <span class="screen-nav__meta">幸福驾照</span>
+        </header>
+        <div class="license-page-head">
+          <p class="eyebrow">两科完成 · 正式领证</p>
+          <h1 id="license-title" tabindex="-1">把一起走的路，<br>盖章留存。</h1>
+          <p>这张卡适合截图，也适合三个月后再回来对照。</p>
+        </div>
+
+        <article class="license-card" id="licenseCard" aria-label="幸福驾照卡">
+          <div class="license-card__frame" aria-hidden="true"></div>
+          <header class="license-card__head">
+            <div><p>HAPPINESS DRIVING LICENSE</p><h2>幸福驾照</h2></div>
+            <span>家庭版</span>
+          </header>
+          <div class="license-card__score">
+            <p>领证分</p>
+            <output id="licenseScore">0</output>
+            <span>/ 100</span>
+          </div>
+          <div class="license-card__grade">
+            <span>准驾等级</span>
+            <strong id="licenseGrade">实习期</strong>
+            <p id="licenseMessage"></p>
+          </div>
+          <dl class="license-card__facts">
+            <div><dt>科目二</dt><dd id="licenseS2Score">0 分</dd></div>
+            <div><dt>科目三</dt><dd id="licenseS3Score">0 分</dd></div>
+            <div><dt>扣分总数</dt><dd id="licenseDeductionTotal">0 分</dd></div>
+            <div><dt>扣分项</dt><dd id="licenseDeductionCount">0 项</dd></div>
+            <div class="license-card__date"><dt>颁发日期</dt><dd id="licenseIssuedAt">—</dd></div>
+          </dl>
+          <div class="license-card__stamp" aria-hidden="true"><span>幸福</span><span>准驾</span></div>
+          <p class="license-card__serial" id="licenseSerial">NO. HF-000000</p>
+        </article>
+
+        <section class="retest-section" aria-labelledby="retest-title">
+          <div class="section-heading compact-heading"><p class="eyebrow">复检路线</p><h2 id="retest-title">驾照不是终点，稳定才是</h2></div>
+          <ol class="retest-list" id="licenseRetestList"></ol>
+          <p class="stable-note" id="licenseStableMessage"></p>
+        </section>
+      </section>
+
+      <noscript><p class="noscript">请启用浏览器脚本后再开始自检。</p></noscript>
     </main>
   </body>
 </html>

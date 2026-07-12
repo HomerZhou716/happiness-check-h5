@@ -1,4 +1,11 @@
 const STORAGE_KEY = "happiness-self-check:paper:v1";
+const DRIVING_STORAGE_KEYS = Object.freeze({
+  s2: "happiness-driving:s2:v1",
+  s3: "happiness-driving:s3:v1"
+});
+const DRIVING_DATA = typeof module !== "undefined" && module.exports
+  ? require("./subjects.js")
+  : globalThis.HAPPINESS_DRIVING_DATA;
 const QUESTION_TRANSITION_MS = 250;
 const SCREEN_TRANSITION_MS = 320;
 const BREATH_TOTAL_SECONDS = 60;
@@ -252,6 +259,148 @@ function normalizeStoredState(rawState = {}) {
   };
 }
 
+function getDrivingSubject(subjectInput) {
+  const subjectId = typeof subjectInput === "string" ? subjectInput : subjectInput?.id;
+  const metadata = DRIVING_DATA?.subjects?.[subjectId];
+  if (!metadata) throw new RangeError(`Unknown driving subject: ${String(subjectId)}`);
+
+  const dimensions = metadata.dimension_codes.map((code) => {
+    const dimension = DRIVING_DATA.dimensions.find((candidate) => candidate.code === code);
+    if (!dimension) throw new RangeError(`Missing driving dimension: ${code}`);
+    return dimension;
+  });
+
+  return {
+    ...metadata,
+    dimensions,
+    questions: dimensions.flatMap((dimension) => dimension.items)
+  };
+}
+
+function randomIndex(maxExclusive, random) {
+  const roll = Number(random());
+  const safeRoll = Number.isFinite(roll) ? Math.min(Math.max(roll, 0), 0.9999999999999999) : 0;
+  return Math.floor(safeRoll * maxExclusive);
+}
+
+function createOptionOrders(questionCount, random = Math.random) {
+  if (!Number.isInteger(questionCount) || questionCount < 0 || typeof random !== "function") {
+    throw new TypeError("questionCount must be a non-negative integer and random must be a function.");
+  }
+
+  return Array.from({ length: questionCount }, () => {
+    const order = [2, 1, 0];
+    for (let index = order.length - 1; index > 0; index -= 1) {
+      const swapIndex = randomIndex(index + 1, random);
+      [order[index], order[swapIndex]] = [order[swapIndex], order[index]];
+    }
+    return order;
+  });
+}
+
+function isValidOptionOrder(order) {
+  return Array.isArray(order)
+    && order.length === 3
+    && [...order].sort((first, second) => first - second).every((value, index) => value === index);
+}
+
+function calculateDrivingResults(subjectInput, answers) {
+  const subject = getDrivingSubject(subjectInput);
+  if (!Array.isArray(answers)
+    || answers.length !== subject.questions.length
+    || answers.some((value) => !Number.isInteger(value) || value < 0 || value > 2)) {
+    throw new TypeError(`A complete ${subject.questions.length}-answer set using 0, 1 or 2 is required.`);
+  }
+
+  let answerOffset = 0;
+  const scores = {};
+  subject.dimensions.forEach((dimension) => {
+    const values = answers.slice(answerOffset, answerOffset + dimension.items.length);
+    const maximum = dimension.items.length * 2;
+    scores[dimension.code] = Math.round((values.reduce((sum, value) => sum + value, 0) / maximum) * 100);
+    answerOffset += dimension.items.length;
+  });
+  const total = Math.round(
+    subject.dimension_codes.reduce((sum, code) => sum + scores[code], 0) / subject.dimension_codes.length
+  );
+  const weakest = subject.dimension_codes.reduce((current, code) => (
+    scores[code] < scores[current] ? code : current
+  ), subject.dimension_codes[0]);
+  const deductions = subject.questions.flatMap((question, index) => answers[index] === 0 ? [{
+    id: question.id,
+    subjectId: subject.id,
+    dimension: question.dimension || question.id.split("-")[0],
+    text: question.text,
+    selectedText: question.options.find((option) => option.value === 0).text,
+    copy: question.deduction,
+    points: 8
+  }] : []);
+  const hazards = deductions.flatMap((deduction) => {
+    const question = subject.questions.find((candidate) => candidate.id === deduction.id);
+    return question.hazard ? [{ ...deduction, hazard: question.hazard }] : [];
+  });
+
+  return { subjectId: subject.id, total, scores, weakest, deductions, hazards };
+}
+
+function normalizeDrivingState(rawState = {}, subjectInput, random = Math.random) {
+  rawState = rawState && typeof rawState === "object" && !Array.isArray(rawState) ? rawState : {};
+  const subject = getDrivingSubject(subjectInput);
+  const sourceAnswers = Array.isArray(rawState.answers) ? rawState.answers : [];
+  const answers = Array.from({ length: subject.questions.length }, (_, index) => {
+    const value = sourceAnswers[index];
+    return Number.isInteger(value) && value >= 0 && value <= 2 ? value : null;
+  });
+  const sourceOrders = Array.isArray(rawState.optionOrders) ? rawState.optionOrders : [];
+  const optionOrders = Array.from({ length: subject.questions.length }, (_, index) => (
+    isValidOptionOrder(sourceOrders[index])
+      ? [...sourceOrders[index]]
+      : createOptionOrders(1, random)[0]
+  ));
+  const firstUnanswered = answers.findIndex((answer) => answer === null);
+  const isComplete = firstUnanswered === -1;
+  const results = isComplete ? calculateDrivingResults(subject.id, answers) : null;
+
+  return {
+    answers,
+    currentQuestion: isComplete ? subject.questions.length - 1 : Math.max(0, firstUnanswered),
+    optionOrders,
+    results,
+    completedAt: results && typeof rawState.completedAt === "string" ? rawState.completedAt : null,
+    planDimension: results ? results.weakest : null,
+    practiceCompleted: Boolean(results && rawState.practiceCompleted === true)
+  };
+}
+
+function getLicenseGrade(score) {
+  if (!Number.isFinite(score) || score < 0 || score > 100) {
+    throw new RangeError("License score must be from 0 to 100.");
+  }
+  return DRIVING_DATA.grades.find((grade) => score >= grade.min);
+}
+
+function calculateLicense(s2Results, s3Results) {
+  if (!s2Results || !s3Results || !Number.isFinite(s2Results.total) || !Number.isFinite(s3Results.total)) {
+    throw new TypeError("Two completed subject results are required.");
+  }
+  const score = Math.round((s2Results.total + s3Results.total) / 2);
+  const deductions = [...(s2Results.deductions || []), ...(s3Results.deductions || [])];
+  const hazards = [...(s2Results.hazards || []), ...(s3Results.hazards || [])];
+  return {
+    score,
+    deductionTotal: 100 - score,
+    deductionCount: deductions.length,
+    hazardCount: hazards.length,
+    deductions,
+    hazards,
+    grade: getLicenseGrade(score)
+  };
+}
+
+function canIssueLicense(s2State, s3State) {
+  return Boolean(s2State?.results && s3State?.results);
+}
+
 let appState = null;
 let elements = {};
 let activeScreen = "home";
@@ -264,14 +413,27 @@ let breathStartedAt = 0;
 let isScreenTransitioning = false;
 let isQuestionTransitioning = false;
 let storageAvailable = true;
+let drivingStates = { s2: null, s3: null };
+let drivingStorageAvailable = { s2: true, s3: true };
+let activeDrivingSubjectId = null;
+let drivingQuestionTransitionTimer = null;
+let isDrivingQuestionTransitioning = false;
+let drivingScoreAnimationFrame = null;
+let drivingScoreAnimationTimer = null;
+let currentPlanContext = { type: "perma" };
 
 function initApp() {
   elements = {
     screens: [...document.querySelectorAll("[data-screen]")].filter((element) => element.classList.contains("screen")),
-    startButton: document.querySelector("#startButton"),
-    startButtonLabel: document.querySelector("#startButtonLabel"),
-    restartButton: document.querySelector("#restartButton"),
-    resumeNote: document.querySelector("#resumeNote"),
+    subjectCards: Object.fromEntries(["s1", "s2", "s3"].map((subjectId) => [subjectId, {
+      card: document.querySelector(`[data-subject-card='${subjectId}']`),
+      status: document.querySelector(`#${subjectId}Status`),
+      score: document.querySelector(`#${subjectId}Score`),
+      label: document.querySelector(`#${subjectId}ActionLabel`),
+      retake: document.querySelector(`[data-subject='${subjectId}'][data-subject-action='retake']`)
+    }])),
+    licenseEntry: document.querySelector("#licenseEntry"),
+    licenseButton: document.querySelector("#licenseButton"),
     quizBackButton: document.querySelector("#quizBackButton"),
     questionNumber: document.querySelector("#questionNumber"),
     quizProgress: document.querySelector("#quizProgress"),
@@ -287,9 +449,36 @@ function initApp() {
     dimensionInsights: document.querySelector("#dimensionInsights"),
     viewPlanButton: document.querySelector("#viewPlanButton"),
     retakeButton: document.querySelector("#retakeButton"),
+    drivingQuizBackButton: document.querySelector("#drivingQuizBackButton"),
+    drivingSubjectLabel: document.querySelector("#drivingSubjectLabel"),
+    drivingQuestionNumber: document.querySelector("#drivingQuestionNumber"),
+    drivingQuizProgress: document.querySelector("#drivingQuizProgress"),
+    drivingQuestionStage: document.querySelector("#drivingQuestionStage"),
+    drivingQuestionDimension: document.querySelector("#drivingQuestionDimension"),
+    drivingQuestionText: document.querySelector("#drivingQuestionText"),
+    drivingOptions: document.querySelector("#drivingOptions"),
+    drivingQuestionHint: document.querySelector("#drivingQuestionHint"),
+    drivingQuestionSource: document.querySelector("#drivingQuestionSource"),
+    drivingResultMeta: document.querySelector("#drivingResultMeta"),
+    drivingResultKicker: document.querySelector("#drivingResultKicker"),
+    drivingTotalScore: document.querySelector("#drivingTotalScore"),
+    drivingResultTitle: document.querySelector("#driving-result-title"),
+    drivingResultSummary: document.querySelector("#drivingResultSummary"),
+    drivingDimensionBars: document.querySelector("#drivingDimensionBars"),
+    drivingWeakLabel: document.querySelector("#drivingWeakLabel"),
+    drivingWeakInsight: document.querySelector("#drivingWeakInsight"),
+    drivingDeductionList: document.querySelector("#drivingDeductionList"),
+    drivingDeductionEmpty: document.querySelector("#drivingDeductionEmpty"),
+    drivingHazardSection: document.querySelector("#drivingHazardSection"),
+    drivingHazardList: document.querySelector("#drivingHazardList"),
+    drivingHazardClear: document.querySelector("#drivingHazardClear"),
+    drivingPlanButton: document.querySelector("#drivingPlanButton"),
+    drivingRetakeButton: document.querySelector("#drivingRetakeButton"),
     planBackButton: document.querySelector("#planBackButton"),
+    planNavMeta: document.querySelector("#planNavMeta"),
     planKicker: document.querySelector("#planKicker"),
     planName: document.querySelector("#planName"),
+    planTypeLabel: document.querySelector("#planTypeLabel"),
     planDescription: document.querySelector("#planDescription"),
     trainingTimeline: document.querySelector("#trainingTimeline"),
     closeBreatheButton: document.querySelector("#closeBreatheButton"),
@@ -299,38 +488,62 @@ function initApp() {
     breathPattern: document.querySelector("#breathPattern"),
     breathControls: document.querySelector(".breath-controls"),
     startBreathButton: document.querySelector("#startBreathButton"),
-    backToPlanButton: document.querySelector("#backToPlanButton")
+    backToPlanButton: document.querySelector("#backToPlanButton"),
+    licenseCard: document.querySelector("#licenseCard"),
+    licenseScore: document.querySelector("#licenseScore"),
+    licenseGrade: document.querySelector("#licenseGrade"),
+    licenseMessage: document.querySelector("#licenseMessage"),
+    licenseS2Score: document.querySelector("#licenseS2Score"),
+    licenseS3Score: document.querySelector("#licenseS3Score"),
+    licenseDeductionTotal: document.querySelector("#licenseDeductionTotal"),
+    licenseDeductionCount: document.querySelector("#licenseDeductionCount"),
+    licenseIssuedAt: document.querySelector("#licenseIssuedAt"),
+    licenseSerial: document.querySelector("#licenseSerial"),
+    licenseRetestList: document.querySelector("#licenseRetestList"),
+    licenseStableMessage: document.querySelector("#licenseStableMessage")
   };
 
   appState = loadStoredState();
+  drivingStates = {
+    s2: loadDrivingStoredState("s2"),
+    s3: loadDrivingStoredState("s3")
+  };
   bindEvents();
   updateHomeState();
   renderQuestion();
 }
 
 function bindEvents() {
-  elements.startButton.addEventListener("click", handlePrimaryStart);
-  elements.restartButton.addEventListener("click", restartAssessment);
+  document.querySelectorAll("[data-subject-action]").forEach((button) => {
+    button.addEventListener("click", () => handleSubjectAction(button.dataset.subject, button.dataset.subjectAction));
+  });
+  elements.licenseButton.addEventListener("click", openLicense);
   elements.quizBackButton.addEventListener("click", goToPreviousQuestion);
   elements.scaleOptions.addEventListener("keydown", handleScaleKeys);
   elements.viewPlanButton.addEventListener("click", openTrainingPlan);
   elements.retakeButton.addEventListener("click", restartAssessment);
-  elements.planBackButton.addEventListener("click", openResult);
+  elements.drivingQuizBackButton.addEventListener("click", goToPreviousDrivingQuestion);
+  elements.drivingOptions.addEventListener("keydown", handleDrivingOptionKeys);
+  elements.drivingPlanButton.addEventListener("click", openDrivingTrainingPlan);
+  elements.drivingRetakeButton.addEventListener("click", () => restartDrivingSubject(activeDrivingSubjectId));
+  elements.planBackButton.addEventListener("click", returnToHome);
   elements.closeBreatheButton.addEventListener("click", exitBreathingPractice);
   elements.startBreathButton.addEventListener("click", startBreathingPractice);
-  elements.backToPlanButton.addEventListener("click", openTrainingPlan);
+  elements.backToPlanButton.addEventListener("click", returnToHome);
   document.querySelectorAll("[data-action='home']").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.preventDefault();
-      stopBreathingPractice();
-      updateHomeState();
-      showScreen("home");
+      returnToHome();
     });
   });
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && breathTimer) updateBreathClock();
   });
-  window.addEventListener("pagehide", persistState);
+  window.addEventListener("pagehide", () => {
+    persistState();
+    persistDrivingState("s2");
+    persistDrivingState("s3");
+  });
 }
 
 function loadStoredState() {
@@ -356,30 +569,87 @@ function persistState() {
   }
 }
 
-function updateHomeState() {
-  const answeredCount = appState.answers.filter((answer) => answer !== null).length;
-
-  if (appState.results) {
-    elements.startButtonLabel.textContent = "查看我的报告";
-    elements.resumeNote.textContent = storageAvailable ? "本次结果已保存在这台设备" : "本次结果仅保留到本页关闭前";
-    elements.resumeNote.hidden = false;
-    elements.restartButton.hidden = false;
-    return;
+function loadDrivingStoredState(subjectId) {
+  let saved = null;
+  try {
+    saved = window.localStorage.getItem(DRIVING_STORAGE_KEYS[subjectId]);
+    drivingStorageAvailable[subjectId] = true;
+  } catch (_error) {
+    drivingStorageAvailable[subjectId] = false;
   }
 
+  let rawState = {};
+  if (saved) {
+    try {
+      rawState = JSON.parse(saved);
+    } catch (_error) {
+      rawState = {};
+    }
+  }
+  return normalizeDrivingState(rawState, subjectId);
+}
+
+function persistDrivingState(subjectId) {
+  if (!drivingStates[subjectId]) return false;
+  try {
+    window.localStorage.setItem(DRIVING_STORAGE_KEYS[subjectId], JSON.stringify(drivingStates[subjectId]));
+    drivingStorageAvailable[subjectId] = true;
+    return true;
+  } catch (_error) {
+    drivingStorageAvailable[subjectId] = false;
+    return false;
+  }
+}
+
+function updateSubjectCard(subjectId, state, totalQuestions) {
+  const controls = elements.subjectCards[subjectId];
+  const answeredCount = state.answers.filter((answer) => answer !== null).length;
+  const subjectNumber = subjectId === "s1" ? "一" : subjectId === "s2" ? "二" : "三";
+  controls.card.classList.toggle("is-complete", Boolean(state.results));
+  controls.card.classList.toggle("is-progress", !state.results && answeredCount > 0);
+
+  if (state.results) {
+    controls.status.textContent = "已完成";
+    controls.score.textContent = `${state.results.total} 分`;
+    controls.score.hidden = false;
+    controls.label.textContent = "查看报告";
+    controls.retake.hidden = false;
+    return;
+  }
+  controls.score.hidden = true;
+  controls.retake.hidden = answeredCount === 0;
   if (answeredCount > 0) {
-    elements.startButtonLabel.textContent = "继续自检";
-    elements.resumeNote.textContent = storageAvailable
-      ? `已完成 ${answeredCount} / ${QUESTIONS.length}，进度已保存`
-      : `已完成 ${answeredCount} / ${QUESTIONS.length}（仅保留到本页关闭前）`;
-    elements.resumeNote.hidden = false;
-    elements.restartButton.hidden = false;
+    controls.status.textContent = `进行中 · ${answeredCount}/${totalQuestions}`;
+    controls.label.textContent = `继续科目${subjectNumber}`;
     return;
   }
+  controls.status.textContent = "未开始";
+  controls.label.textContent = `开始科目${subjectNumber}`;
+}
 
-  elements.startButtonLabel.textContent = "开始自检";
-  elements.resumeNote.hidden = true;
-  elements.restartButton.hidden = true;
+function updateHomeState() {
+  updateSubjectCard("s1", appState, QUESTIONS.length);
+  updateSubjectCard("s2", drivingStates.s2, getDrivingSubject("s2").questions.length);
+  updateSubjectCard("s3", drivingStates.s3, getDrivingSubject("s3").questions.length);
+  elements.licenseEntry.hidden = !canIssueLicense(drivingStates.s2, drivingStates.s3);
+}
+
+function handleSubjectAction(subjectId, action) {
+  if (action === "retake") {
+    if (subjectId === "s1") restartAssessment();
+    else restartDrivingSubject(subjectId);
+    return;
+  }
+  if (subjectId === "s1") handlePrimaryStart();
+  else openDrivingSubject(subjectId);
+}
+
+function returnToHome() {
+  stopBreathingPractice();
+  stopScoreAnimation();
+  stopDrivingScoreAnimation();
+  updateHomeState();
+  showScreen("home");
 }
 
 function handlePrimaryStart() {
@@ -516,6 +786,352 @@ function completeAssessment() {
   persistState();
   updateHomeState();
   openResult();
+}
+
+function openDrivingSubject(subjectId) {
+  const state = drivingStates[subjectId];
+  if (!state) return;
+  activeDrivingSubjectId = subjectId;
+  if (state.results) {
+    openDrivingResult(subjectId);
+    return;
+  }
+  const firstUnanswered = state.answers.findIndex((answer) => answer === null);
+  if (firstUnanswered >= 0 && state.answers[state.currentQuestion] !== null) {
+    state.currentQuestion = firstUnanswered;
+  }
+  renderDrivingQuestion();
+  showScreen("driving-quiz");
+}
+
+function restartDrivingSubject(subjectId) {
+  if (!DRIVING_STORAGE_KEYS[subjectId]) return;
+  drivingStates[subjectId] = normalizeDrivingState({}, subjectId);
+  activeDrivingSubjectId = subjectId;
+  try {
+    window.localStorage.removeItem(DRIVING_STORAGE_KEYS[subjectId]);
+    drivingStorageAvailable[subjectId] = true;
+  } catch (_error) {
+    drivingStorageAvailable[subjectId] = false;
+  }
+  updateHomeState();
+  renderDrivingQuestion();
+  showScreen("driving-quiz");
+}
+
+function renderDrivingQuestion() {
+  if (!activeDrivingSubjectId) return;
+  const subject = getDrivingSubject(activeDrivingSubjectId);
+  const state = drivingStates[activeDrivingSubjectId];
+  const index = state.currentQuestion;
+  const question = subject.questions[index];
+  const dimensionCode = question.id.split("-")[0];
+  const dimension = subject.dimensions.find((candidate) => candidate.code === dimensionCode);
+  const selectedValue = state.answers[index];
+
+  elements.drivingSubjectLabel.textContent = `${subject.number} · ${subject.name}`;
+  elements.drivingQuestionNumber.textContent = String(index + 1).padStart(2, "0");
+  elements.drivingQuizProgress.style.width = `${((index + 1) / subject.questions.length) * 100}%`;
+  elements.drivingQuestionDimension.textContent = `${dimension.code} · ${dimension.name}`;
+  elements.drivingQuestionText.textContent = question.text;
+  elements.drivingQuestionSource.textContent = `题源 · ${question.source}`;
+  elements.drivingQuizBackButton.setAttribute("aria-label", index === 0 ? "返回科目选择" : "返回上一题");
+
+  const buttons = state.optionOrders[index].map((value, visualIndex) => {
+    const option = question.options.find((candidate) => candidate.value === value);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "driving-option";
+    button.dataset.value = String(value);
+    button.setAttribute("role", "radio");
+    button.setAttribute("aria-checked", String(selectedValue === value));
+    button.tabIndex = selectedValue === null ? (visualIndex === 0 ? 0 : -1) : (selectedValue === value ? 0 : -1);
+    if (selectedValue === value) button.classList.add("is-selected");
+
+    const mark = document.createElement("span");
+    mark.className = "driving-option__mark";
+    mark.textContent = String(visualIndex + 1).padStart(2, "0");
+    mark.setAttribute("aria-hidden", "true");
+    const text = document.createElement("span");
+    text.className = "driving-option__text";
+    text.textContent = option.text;
+    button.append(mark, text);
+    button.addEventListener("click", () => chooseDrivingAnswer(value));
+    return button;
+  });
+  elements.drivingOptions.replaceChildren(...buttons);
+  elements.drivingQuestionHint.textContent = selectedValue === null
+    ? "选择后 250ms 自动进入下一题"
+    : `已选择 · ${question.options.find((option) => option.value === selectedValue).text}`;
+}
+
+function handleDrivingOptionKeys(event) {
+  if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+  event.preventDefault();
+  const buttons = [...elements.drivingOptions.querySelectorAll(".driving-option")];
+  if (!buttons.length) return;
+  const currentIndex = Math.max(0, buttons.indexOf(document.activeElement));
+  const step = ["ArrowRight", "ArrowDown"].includes(event.key) ? 1 : -1;
+  const nextIndex = (currentIndex + step + buttons.length) % buttons.length;
+  buttons.forEach((button, index) => { button.tabIndex = index === nextIndex ? 0 : -1; });
+  buttons[nextIndex].focus();
+}
+
+function chooseDrivingAnswer(value) {
+  if (isDrivingQuestionTransitioning || !activeDrivingSubjectId) return;
+  const subject = getDrivingSubject(activeDrivingSubjectId);
+  const state = drivingStates[activeDrivingSubjectId];
+  const index = state.currentQuestion;
+  state.answers[index] = value;
+  persistDrivingState(activeDrivingSubjectId);
+
+  elements.drivingOptions.querySelectorAll(".driving-option").forEach((button) => {
+    const isSelected = Number(button.dataset.value) === value;
+    button.classList.toggle("is-selected", isSelected);
+    button.setAttribute("aria-checked", String(isSelected));
+  });
+  const question = subject.questions[index];
+  elements.drivingQuestionHint.textContent = `已选择 · ${question.options.find((option) => option.value === value).text}`;
+
+  isDrivingQuestionTransitioning = true;
+  elements.drivingQuestionStage.classList.add("is-changing");
+  window.clearTimeout(drivingQuestionTransitionTimer);
+  drivingQuestionTransitionTimer = window.setTimeout(() => {
+    const isLastQuestion = index === subject.questions.length - 1;
+    const firstUnanswered = state.answers.findIndex((answer) => answer === null);
+    if (isLastQuestion && firstUnanswered === -1) {
+      completeDrivingSubject();
+      elements.drivingQuestionStage.classList.remove("is-changing");
+      isDrivingQuestionTransitioning = false;
+      return;
+    }
+
+    state.currentQuestion = isLastQuestion ? firstUnanswered : index + 1;
+    persistDrivingState(activeDrivingSubjectId);
+    renderDrivingQuestion();
+    // 页面不可见时 rAF 会暂停，门闩在定时器回调中直接解除
+    elements.drivingQuestionStage.classList.remove("is-changing");
+    elements.drivingQuestionText.focus({ preventScroll: true });
+    isDrivingQuestionTransitioning = false;
+  }, QUESTION_TRANSITION_MS);
+}
+
+function goToPreviousDrivingQuestion() {
+  if (isDrivingQuestionTransitioning || !activeDrivingSubjectId) return;
+  const state = drivingStates[activeDrivingSubjectId];
+  if (state.currentQuestion === 0) {
+    returnToHome();
+    return;
+  }
+  transitionDrivingQuestionTo(state.currentQuestion - 1);
+}
+
+function transitionDrivingQuestionTo(index) {
+  isDrivingQuestionTransitioning = true;
+  elements.drivingQuestionStage.classList.add("is-changing");
+  window.clearTimeout(drivingQuestionTransitionTimer);
+  drivingQuestionTransitionTimer = window.setTimeout(() => {
+    const state = drivingStates[activeDrivingSubjectId];
+    state.currentQuestion = index;
+    persistDrivingState(activeDrivingSubjectId);
+    renderDrivingQuestion();
+    elements.drivingQuestionStage.classList.remove("is-changing");
+    elements.drivingQuestionText.focus({ preventScroll: true });
+    isDrivingQuestionTransitioning = false;
+  }, QUESTION_TRANSITION_MS);
+}
+
+function completeDrivingSubject() {
+  const state = drivingStates[activeDrivingSubjectId];
+  state.results = calculateDrivingResults(activeDrivingSubjectId, state.answers);
+  state.completedAt = new Date().toISOString();
+  state.planDimension = state.results.weakest;
+  persistDrivingState(activeDrivingSubjectId);
+  updateHomeState();
+  openDrivingResult(activeDrivingSubjectId);
+}
+
+function drivingResultMessage(total) {
+  if (total >= 85) return {
+    title: "这段路开得稳，细节也经得住看。",
+    summary: "守住已经做对的动作，再把扣分项当作下一段陪练路线。"
+  };
+  if (total >= 70) return {
+    title: "大部分路段稳定，偶尔还有小剐蹭。",
+    summary: "不用面面俱到，从最弱的一段和具体扣分项开始补练。"
+  };
+  if (total >= 55) return {
+    title: "已经上路，几个路口还不太熟。",
+    summary: "一次只练一个动作，比给自己贴结论更有用。"
+  };
+  return {
+    title: "这段路先慢一点，别急着独自扛。",
+    summary: "把结果放到家人之间认真聊一聊，先共同处理最弱的一段。"
+  };
+}
+
+function openDrivingResult(subjectId = activeDrivingSubjectId) {
+  if (!subjectId || !drivingStates[subjectId]?.results) return;
+  activeDrivingSubjectId = subjectId;
+  stopDrivingScoreAnimation();
+  renderDrivingResult();
+  showScreen("driving-result");
+  drivingScoreAnimationTimer = window.setTimeout(
+    () => animateDrivingScore(drivingStates[subjectId].results.total),
+    SCREEN_TRANSITION_MS * 0.55
+  );
+}
+
+function renderDrivingResult() {
+  const subject = getDrivingSubject(activeDrivingSubjectId);
+  const state = drivingStates[activeDrivingSubjectId];
+  const { total, scores, weakest, deductions, hazards } = state.results;
+  const message = drivingResultMessage(total);
+  const weakestDimension = subject.dimensions.find((dimension) => dimension.code === weakest);
+
+  elements.drivingResultMeta.textContent = `${subject.number} · 报告`;
+  elements.drivingResultKicker.textContent = `${subject.name} · 本次科目分`;
+  elements.drivingTotalScore.value = "0";
+  elements.drivingTotalScore.textContent = "0";
+  elements.drivingResultTitle.textContent = message.title;
+  elements.drivingResultSummary.textContent = message.summary;
+  elements.drivingWeakLabel.textContent = `${weakestDimension.code} · ${weakestDimension.name} · 本次较弱`;
+  elements.drivingWeakInsight.textContent = weakestDimension.insight_low;
+
+  const bars = subject.dimensions.map((dimension, index) => {
+    const row = document.createElement("article");
+    row.className = `driving-bar${dimension.code === weakest ? " is-weak" : ""}`;
+    row.style.setProperty("--bar-delay", `${120 + (index * 110)}ms`);
+    const head = document.createElement("div");
+    head.className = "driving-bar__head";
+    const name = document.createElement("span");
+    name.textContent = `${dimension.code} · ${dimension.name}`;
+    const score = document.createElement("strong");
+    score.textContent = String(scores[dimension.code]);
+    head.append(name, score);
+    const track = document.createElement("div");
+    track.className = "driving-bar__track";
+    track.setAttribute("role", "meter");
+    track.setAttribute("aria-label", `${dimension.name} ${scores[dimension.code]} 分`);
+    track.setAttribute("aria-valuemin", "0");
+    track.setAttribute("aria-valuemax", "100");
+    track.setAttribute("aria-valuenow", String(scores[dimension.code]));
+    const fill = document.createElement("span");
+    fill.style.setProperty("--bar-score", `${scores[dimension.code]}%`);
+    track.append(fill);
+    row.append(head, track);
+    return row;
+  });
+  elements.drivingDimensionBars.replaceChildren(...bars);
+
+  const deductionItems = deductions.map((deduction) => {
+    const item = document.createElement("li");
+    const points = document.createElement("strong");
+    points.textContent = `扣 ${deduction.points} 分`;
+    const copy = document.createElement("p");
+    copy.textContent = deduction.copy;
+    const answer = document.createElement("span");
+    answer.textContent = `本题选择：${deduction.selectedText}`;
+    item.append(points, copy, answer);
+    return item;
+  });
+  elements.drivingDeductionList.replaceChildren(...deductionItems);
+  elements.drivingDeductionEmpty.hidden = deductions.length > 0;
+
+  const hazardItems = hazards.map((hazard) => {
+    const item = document.createElement("li");
+    const title = document.createElement("strong");
+    title.textContent = hazard.hazard;
+    const detail = document.createElement("span");
+    detail.textContent = hazard.selectedText;
+    item.append(title, detail);
+    return item;
+  });
+  elements.drivingHazardList.replaceChildren(...hazardItems);
+  elements.drivingHazardSection.classList.toggle("is-on", hazards.length > 0);
+  elements.drivingHazardClear.hidden = hazards.length > 0;
+}
+
+function animateDrivingScore(target) {
+  window.clearTimeout(drivingScoreAnimationTimer);
+  drivingScoreAnimationTimer = null;
+  window.cancelAnimationFrame(drivingScoreAnimationFrame);
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    elements.drivingTotalScore.value = String(target);
+    elements.drivingTotalScore.textContent = String(target);
+    return;
+  }
+  const startedAt = performance.now();
+  const duration = 1050;
+  const tick = (now) => {
+    const progress = Math.min(1, (now - startedAt) / duration);
+    const value = Math.round(target * (1 - ((1 - progress) ** 3)));
+    elements.drivingTotalScore.value = String(value);
+    elements.drivingTotalScore.textContent = String(value);
+    if (progress < 1) drivingScoreAnimationFrame = window.requestAnimationFrame(tick);
+  };
+  drivingScoreAnimationFrame = window.requestAnimationFrame(tick);
+  drivingScoreAnimationTimer = window.setTimeout(() => {
+    elements.drivingTotalScore.value = String(target);
+    elements.drivingTotalScore.textContent = String(target);
+  }, duration + 250);
+}
+
+function stopDrivingScoreAnimation() {
+  window.clearTimeout(drivingScoreAnimationTimer);
+  window.cancelAnimationFrame(drivingScoreAnimationFrame);
+  drivingScoreAnimationTimer = null;
+  drivingScoreAnimationFrame = null;
+}
+
+function resolveLicenseIssuedAt(values, fallback = new Date()) {
+  const completedTimes = Array.isArray(values) ? values
+    .map((value) => typeof value === "string" && value ? Date.parse(value) : Number.NaN)
+    .filter(Number.isFinite) : [];
+  const fallbackTime = fallback instanceof Date ? fallback.getTime() : Date.parse(fallback);
+  const safeFallbackTime = Number.isFinite(fallbackTime) ? fallbackTime : Date.now();
+  return new Date(completedTimes.length ? Math.max(...completedTimes) : safeFallbackTime);
+}
+
+function formatIssuedDate(value) {
+  const date = new Date(value);
+  const safeDate = Number.isNaN(date.getTime()) ? new Date() : date;
+  return `${safeDate.getFullYear()}年${safeDate.getMonth() + 1}月${safeDate.getDate()}日`;
+}
+
+function renderLicense() {
+  const license = calculateLicense(drivingStates.s2.results, drivingStates.s3.results);
+  const issuedAt = resolveLicenseIssuedAt([drivingStates.s2.completedAt, drivingStates.s3.completedAt]);
+  const dateCode = `${issuedAt.getFullYear()}${String(issuedAt.getMonth() + 1).padStart(2, "0")}${String(issuedAt.getDate()).padStart(2, "0")}`;
+
+  elements.licenseScore.value = String(license.score);
+  elements.licenseScore.textContent = String(license.score);
+  elements.licenseGrade.textContent = license.grade.name;
+  elements.licenseMessage.textContent = license.grade.message;
+  elements.licenseS2Score.textContent = `${drivingStates.s2.results.total} 分`;
+  elements.licenseS3Score.textContent = `${drivingStates.s3.results.total} 分`;
+  elements.licenseDeductionTotal.textContent = `${license.deductionTotal} 分`;
+  elements.licenseDeductionCount.textContent = `${license.deductionCount} 项`;
+  elements.licenseIssuedAt.textContent = formatIssuedDate(issuedAt);
+  elements.licenseSerial.textContent = `NO. HF-${dateCode}-${String(drivingStates.s2.results.total).padStart(3, "0")}${String(drivingStates.s3.results.total).padStart(3, "0")}`;
+
+  const reminders = DRIVING_DATA.retest.map((reminder) => {
+    const item = document.createElement("li");
+    const when = document.createElement("span");
+    when.textContent = reminder.when;
+    const name = document.createElement("strong");
+    name.textContent = reminder.name;
+    item.append(when, name);
+    return item;
+  });
+  elements.licenseRetestList.replaceChildren(...reminders);
+  elements.licenseStableMessage.textContent = DRIVING_DATA.stable_message;
+}
+
+function openLicense() {
+  if (!canIssueLicense(drivingStates.s2, drivingStates.s3)) return;
+  renderLicense();
+  showScreen("license");
 }
 
 function openResult() {
@@ -692,16 +1308,46 @@ function renderDimensionInsights(scores) {
 
 function openTrainingPlan() {
   if (!appState.results) return;
+  currentPlanContext = { type: "perma" };
+  renderTrainingPlan();
+  showScreen("plan");
+}
+
+function openDrivingTrainingPlan() {
+  if (!activeDrivingSubjectId || !drivingStates[activeDrivingSubjectId]?.results) return;
+  const state = drivingStates[activeDrivingSubjectId];
+  currentPlanContext = {
+    type: "driving",
+    subjectId: activeDrivingSubjectId,
+    dimension: state.planDimension || state.results.weakest
+  };
   renderTrainingPlan();
   showScreen("plan");
 }
 
 function renderTrainingPlan() {
-  const weakest = rankWeakDimensions(appState.results.scores)[0];
-  const direction = appState.planDirection || getTrainingDirection(weakest);
-  const plan = TRAINING_PLANS[direction];
-  appState.planDirection = direction;
-  persistState();
+  let plan;
+  let practiceCompleted;
+  if (currentPlanContext.type === "driving") {
+    const { subjectId, dimension } = currentPlanContext;
+    const subject = getDrivingSubject(subjectId);
+    const state = drivingStates[subjectId];
+    plan = DRIVING_DATA.plans[dimension];
+    state.planDimension = dimension;
+    persistDrivingState(subjectId);
+    practiceCompleted = state.practiceCompleted;
+    elements.planNavMeta.textContent = `${subject.number} · ${dimension} 陪练`;
+    elements.planTypeLabel.textContent = "7 天陪练";
+  } else {
+    const weakest = rankWeakDimensions(appState.results.scores)[0];
+    const direction = appState.planDirection || getTrainingDirection(weakest);
+    plan = TRAINING_PLANS[direction];
+    appState.planDirection = direction;
+    persistState();
+    practiceCompleted = appState.practiceCompleted;
+    elements.planNavMeta.textContent = "科目一 · 为你推荐";
+    elements.planTypeLabel.textContent = "7 天微训练";
+  }
 
   elements.planKicker.textContent = plan.kicker;
   elements.planName.textContent = plan.name;
@@ -709,7 +1355,7 @@ function renderTrainingPlan() {
   const items = plan.days.map((day, index) => {
     const item = document.createElement(day.interactive ? "button" : "article");
     if (day.interactive) item.type = "button";
-    item.className = `timeline-item${day.interactive ? " timeline-item--active" : ""}${day.interactive && appState.practiceCompleted ? " is-complete" : ""}`;
+    item.className = `timeline-item${day.interactive ? " timeline-item--active" : ""}${day.interactive && practiceCompleted ? " is-complete" : ""}`;
     item.style.setProperty("--item-delay", `${80 + (index * 65)}ms`);
 
     const dayLabel = document.createElement("span");
@@ -732,7 +1378,7 @@ function renderTrainingPlan() {
     if (day.interactive) {
       const cta = document.createElement("span");
       cta.className = "timeline-cta";
-      cta.textContent = appState.practiceCompleted ? "再练一次" : "开始练习";
+      cta.textContent = practiceCompleted ? "再练一次" : "开始练习";
       content.append(cta);
       item.setAttribute("aria-label", `${day.title}，${cta.textContent}`);
       item.addEventListener("click", openBreathingPractice);
@@ -782,8 +1428,14 @@ function updateBreathClock() {
 
 function finishBreathingPractice() {
   stopBreathingPractice(false);
-  appState.practiceCompleted = true;
-  persistState();
+  if (currentPlanContext.type === "driving") {
+    const state = drivingStates[currentPlanContext.subjectId];
+    state.practiceCompleted = true;
+    persistDrivingState(currentPlanContext.subjectId);
+  } else {
+    appState.practiceCompleted = true;
+    persistState();
+  }
   showScreen("complete");
 }
 
@@ -802,8 +1454,7 @@ function stopBreathingPractice(resetDisplay = true) {
 
 function exitBreathingPractice() {
   stopBreathingPractice();
-  renderTrainingPlan();
-  showScreen("plan");
+  returnToHome();
 }
 
 function showScreen(name) {
@@ -812,6 +1463,7 @@ function showScreen(name) {
   if (!nextScreen || name === activeScreen || isScreenTransitioning) return;
 
   if (activeScreen === "result" && name !== "result") stopScoreAnimation();
+  if (activeScreen === "driving-result" && name !== "driving-result") stopDrivingScoreAnimation();
 
   document.body.dataset.screen = name;
   window.clearTimeout(screenTransitionTimer);
@@ -861,6 +1513,9 @@ function showScreen(name) {
 }
 
 const APP_TEST_API = Object.freeze({
+  STORAGE_KEY,
+  DRIVING_STORAGE_KEYS,
+  DRIVING_DATA,
   QUESTIONS,
   TRAINING_PLANS,
   scoreDimension,
@@ -869,9 +1524,21 @@ const APP_TEST_API = Object.freeze({
   selectWeakDimensions,
   getTrainingDirection,
   normalizeStoredState,
+  getDrivingSubject,
+  createOptionOrders,
+  normalizeDrivingState,
+  calculateDrivingResults,
+  getLicenseGrade,
+  calculateLicense,
+  canIssueLicense,
+  resolveLicenseIssuedAt,
   getBreathPhaseAt,
   formatCountdown
 });
+
+if (typeof globalThis !== "undefined") {
+  globalThis.HappinessDrivingTestAPI = APP_TEST_API;
+}
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = APP_TEST_API;
