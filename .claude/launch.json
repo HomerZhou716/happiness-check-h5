@@ -4,7 +4,7 @@
     {
       "name": "happiness-demo",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "4173", "--directory", "demo"],
+      "runtimeArgs": ["-m", "http.server", "4173"],
       "port": 4173
     }
   ]

@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#D9E6F2">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="用五分钟，看见此刻生活里的五个幸福维度。">
+    <title>幸福自检 · 晨雾</title>
+    <link rel="stylesheet" href="./style.css">
+    <script src="./app.js" defer></script>
+  </head>
+  <body data-screen="home">
+    <div class="sky" aria-hidden="true">
+      <div class="sky__sun"></div>
+      <div class="sky__blob sky__blob--a"></div>
+      <div class="sky__blob sky__blob--b"></div>
+      <div class="sky__blob sky__blob--c"></div>
+      <div class="sky__mist sky__mist--one"></div>
+      <div class="sky__mist sky__mist--two"></div>
+      <div class="sky__mist sky__mist--three"></div>
+    </div>
+
+    <svg class="svg-defs" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="mistRadarStroke" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#8FB2DC"></stop>
+          <stop offset="0.52" stop-color="#B7A3DE"></stop>
+          <stop offset="1" stop-color="#F2A17E"></stop>
+        </linearGradient>
+        <radialGradient id="mistSunFill" cx="0.5" cy="0.4" r="0.62">
+          <stop offset="0" stop-color="#FFE9CE"></stop>
+          <stop offset="1" stop-color="#F5B389"></stop>
+        </radialGradient>
+      </defs>
+    </svg>
+
+    <main class="app-shell" id="app">
+      <section class="screen screen--home is-active" data-screen="home" aria-labelledby="home-title">
+        <header class="home-header">
+          <a class="brand-lockup" href="#" aria-label="幸福自检首页" data-action="home">
+            <span class="brand-seal" aria-hidden="true">幸</span>
+            <span>幸福自检</span>
+          </a>
+          <span class="edition">PERMA · 晨雾</span>
+        </header>
+
+        <div class="home-core">
+          <div class="home-scene" aria-hidden="true">
+            <svg viewBox="0 0 320 232" role="presentation">
+              <circle class="scene-halo scene-halo--far" cx="160" cy="106" r="98" fill="#F5B389" opacity="0.10"></circle>
+              <circle class="scene-halo" cx="160" cy="106" r="72" fill="#F5B389" opacity="0.16"></circle>
+              <circle class="scene-sun" cx="160" cy="106" r="46" fill="url(#mistSunFill)"></circle>
+              <g class="scene-cloud scene-cloud--left" fill="#FFFFFF" opacity="0.92">
+                <ellipse cx="98" cy="158" rx="60" ry="20"></ellipse>
+                <ellipse cx="134" cy="146" rx="34" ry="16"></ellipse>
+              </g>
+              <g class="scene-cloud scene-cloud--right" fill="#FFFFFF" opacity="0.8">
+                <ellipse cx="228" cy="164" rx="64" ry="19"></ellipse>
+                <ellipse cx="196" cy="150" rx="30" ry="14"></ellipse>
+              </g>
+              <g class="scene-cloud scene-cloud--front" fill="#FFFFFF" opacity="0.6">
+                <ellipse cx="160" cy="188" rx="108" ry="18"></ellipse>
+              </g>
+            </svg>
+          </div>
+
+          <div class="home-copy">
+            <p class="eyebrow">像晨雾散开，看清此刻的自己</p>
+            <h1 id="home-title" tabindex="-1">幸福自检</h1>
+            <p class="home-value">5 分钟，看清你此刻的幸福状态</p>
+          </div>
+        </div>
+
+        <div class="home-bottom">
+          <p class="resume-note" id="resumeNote" hidden></p>
+          <button class="primary-button" id="startButton" type="button">
+            <span id="startButtonLabel">开始自检</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12h13m-5-5 5 5-5 5"></path>
+            </svg>
+          </button>
+          <button class="text-button" id="restartButton" type="button" hidden>重新开始</button>
+          <p class="disclaimer">本测评仅用于生活状态的自我观察，不替代专业支持或个性化建议。</p>
+        </div>
+      </section>
+
+      <section class="screen screen--quiz" data-screen="quiz" aria-labelledby="questionText" hidden>
+        <header class="quiz-header">
+          <button class="icon-button" id="quizBackButton" type="button" aria-label="返回上一题">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m15 18-6-6 6-6"></path>
+            </svg>
+          </button>
+          <div class="quiz-count" aria-label="测评进度">
+            <span id="questionNumber">01</span>
+            <span class="quiz-count__total">/ 15</span>
+          </div>
+        </header>
+
+        <div class="progress-line" aria-hidden="true">
+          <span id="quizProgress"></span>
+        </div>
+
+        <div class="question-stage" id="questionStage">
+          <div class="question-copy">
+            <p class="eyebrow" id="questionDimension">P · 积极情绪</p>
+            <h2 id="questionText" tabindex="-1">最近一周，有没有哪个瞬间让你真心笑出来？</h2>
+          </div>
+
+          <div class="scale-block">
+            <div class="scale-options" id="scaleOptions" role="group" aria-labelledby="questionText"></div>
+            <div class="scale-ends" aria-hidden="true">
+              <span>完全没有</span>
+              <span>非常频繁</span>
+            </div>
+            <p class="scale-hint" id="scaleHint" aria-live="polite">选择后自动进入下一题</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen screen--scroll screen--result" data-screen="result" aria-labelledby="result-title" hidden>
+        <header class="screen-nav">
+          <button class="nav-wordmark" type="button" data-action="home" aria-label="回到首页">
+            <span class="brand-seal" aria-hidden="true">幸</span>
+            <span>幸福自检</span>
+          </button>
+          <span class="screen-nav__meta">你的报告</span>
+        </header>
+
+        <div class="result-hero">
+          <p class="eyebrow">此刻的幸福指数</p>
+          <div class="score-lockup" aria-label="幸福指数">
+            <output id="totalScore">0</output>
+            <span>/ 100</span>
+          </div>
+          <h1 id="result-title" tabindex="-1">先看见此刻，不急着得出结论。</h1>
+          <p id="resultSummary">五个维度里，有几处最近出现得更少。先不用急着做什么，看看它们在哪里。</p>
+        </div>
+
+        <figure class="radar-figure" aria-labelledby="radar-caption">
+          <div class="radar-aura" aria-hidden="true"></div>
+          <svg id="radarChart" viewBox="0 0 320 320" role="img" aria-label="五维幸福状态雷达图"></svg>
+          <figcaption id="radar-caption">越靠近外圈，代表这一维度最近出现得越频繁</figcaption>
+        </figure>
+
+        <section class="dimension-section" aria-labelledby="dimension-title">
+          <div class="section-heading">
+            <p class="eyebrow">五个方向</p>
+            <h2 id="dimension-title">哪里稳住了，<br>哪里还需要照看</h2>
+          </div>
+          <div class="dimension-list" id="dimensionInsights"></div>
+        </section>
+
+        <div class="result-actions">
+          <button class="primary-button" id="viewPlanButton" type="button">
+            <span>查看 7 天微训练</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12h13m-5-5 5 5-5 5"></path>
+            </svg>
+          </button>
+          <button class="text-button" id="retakeButton" type="button">重新自检</button>
+        </div>
+      </section>
+
+      <section class="screen screen--scroll screen--plan" data-screen="plan" aria-labelledby="plan-title" hidden>
+        <header class="screen-nav">
+          <button class="icon-button" id="planBackButton" type="button" aria-label="返回报告">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m15 18-6-6 6-6"></path>
+            </svg>
+          </button>
+          <span class="screen-nav__meta">为你推荐</span>
+        </header>
+
+        <div class="plan-hero">
+          <p class="eyebrow" id="planKicker">重新看见</p>
+          <h1 id="plan-title" tabindex="-1"><span id="planName">心态</span><br>7 天微训练</h1>
+          <p id="planDescription">七天里，每天拿出不超过五分钟，把注意力放回真正重要的地方。</p>
+          <div class="plan-rule">
+            <span>7 DAYS</span>
+            <span>每天 ≤ 5 分钟</span>
+          </div>
+        </div>
+
+        <div class="timeline" id="trainingTimeline" aria-label="七天训练计划"></div>
+
+        <p class="plan-footnote">不用补课，也不用追赶。哪一天想起来，就从那一天继续。</p>
+      </section>
+
+      <section class="screen screen--breathe" data-screen="breathe" aria-labelledby="breathe-title" hidden>
+        <header class="breathe-header">
+          <span>DAY 01 · 呼吸内观</span>
+          <button class="icon-button" id="closeBreatheButton" type="button" aria-label="退出练习">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18"></path>
+            </svg>
+          </button>
+        </header>
+
+        <div class="breathe-copy">
+          <p class="eyebrow">让呼吸慢下来，像晨光起落</p>
+          <h1 id="breathe-title" tabindex="-1">肩膀松一点，<br>不必把呼吸做对。</h1>
+        </div>
+
+        <div class="breath-orbit" id="breathOrbit" aria-live="polite">
+          <span class="breath-orbit__ring breath-orbit__ring--outer" aria-hidden="true"></span>
+          <span class="breath-orbit__ring breath-orbit__ring--inner" aria-hidden="true"></span>
+          <span class="breath-orbit__core" aria-hidden="true"></span>
+          <strong id="breathPhase">准备</strong>
+        </div>
+
+        <div class="breath-controls">
+          <time id="breathCountdown" datetime="PT1M">01:00</time>
+          <p id="breathPattern">吸气 4 秒 · 屏息 2 秒 · 呼气 6 秒</p>
+          <button class="primary-button primary-button--quiet" id="startBreathButton" type="button">
+            <span>开始 60 秒</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 7 7 5-7 5Z"></path>
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      <section class="screen screen--complete" data-screen="complete" aria-labelledby="complete-title" hidden>
+        <div class="complete-mark" aria-hidden="true">
+          <svg viewBox="0 0 180 180" fill="none">
+            <circle class="mark-sun" cx="90" cy="78" r="30" pathLength="1"></circle>
+            <path class="mark-ray" d="M90 32v-12M128 44l9-9M52 44l-9-9" pathLength="1"></path>
+            <path class="mark-cloud" d="M30 126c14-18 33-27 54-27 4 0 8 0 12 1 14-16 38-17 52 0 4 5 6 10 7 16" pathLength="1"></path>
+          </svg>
+        </div>
+        <div class="complete-copy">
+          <p class="eyebrow">DAY 01 · 已记下</p>
+          <h1 id="complete-title" tabindex="-1">今天的练习完成了。</h1>
+          <p>明天见。</p>
+        </div>
+        <div class="complete-bottom">
+          <p>不必一次走很远。<br>能回来这一分钟，就已经很好。</p>
+          <button class="line-button" id="backToPlanButton" type="button">回到七天计划</button>
+        </div>
+      </section>
+
+      <noscript>
+        <p class="noscript">请启用浏览器脚本后再开始自检。</p>
+      </noscript>
+    </main>
+  </body>
+</html>
