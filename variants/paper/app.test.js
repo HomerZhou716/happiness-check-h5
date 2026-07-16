@@ -219,7 +219,11 @@ test("HTML keeps legacy screens and adds unique driving screens with valid refer
   const appScript = html.indexOf('<script src="./app.js" defer></script>');
   assert.ok(subjectsScript >= 0, "subjects.js script must be present");
   assert.ok(subjectsScript < appScript, "subjects.js must load before app.js");
-  assert.doesNotMatch(html, /https?:\/\//);
+  // 允许 SVG 命名空间等 data: URI 内的协议串（非网络请求）；只禁止真正的外链资源
+  const externalRefs = [...html.matchAll(/\b(?:src|href)\s*=\s*"(https?:\/\/[^"]+)"/g)]
+    .map((match) => match[1])
+    .filter((url) => !url.startsWith("http://www.w3.org/"));
+  assert.deepEqual(externalRefs, [], "no external network resources allowed");
 
   const appSource = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
   const staticIdSelectors = [...appSource.matchAll(/querySelector\("#([^"]+)"\)/g)].map((match) => match[1]);

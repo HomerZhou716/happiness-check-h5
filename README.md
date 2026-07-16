@@ -1,11 +1,41 @@
-# 幸福自检 · Happiness Self-Check
+# 幸福自检 · 幸福驾校（Happiness Self-Check）
 
-一个 H5 demo：5 分钟 PERMA 五维幸福自测 → 生成雷达图报告与「点破」式解读 → 按最弱维度推荐 7 天微训练（内观 / 心态 / 关系）→ Day 1 可直接体验 60 秒呼吸内观。
+纯静态、零依赖的移动端 H5 家庭关系自检产品。用一次「驾照式」自检看清夫妻/亲子关系，并给出可执行的 7 天陪练。
 
-- 在线体验：`demo/` 目录，纯静态零依赖，双击 `demo/index.html` 即可运行
-- **主版本：`variants/paper/` 纸境·浅色东方**（2026-07-12 选定）；根路径直达
-- 其他 UI 方案（对照保留）：`mist/` 晨雾·明亮疗愈 ｜ `nocturne/` 夜航·深色编辑 ｜ `demo/` 晨光·暖炭原版
-- 计分：每维 3 题 × 7 点量表，归一化 0–100；训练方向 = 最弱维度映射（P/M/A→心态，E→内观，R→关系）
-- 本测评仅用于生活状态的自我观察，不替代专业支持或个性化建议
+- **线上体验**：https://homerzhou716.github.io/happiness-check-h5/
+- **主版本代码**：[`variants/paper/`](variants/paper/)（纸境·东方文人视觉）
+- **在线体验（本地）**：`cd variants/paper && python3 -m http.server 8000`，浏览器打开根路径
 
-详见 [demo/README.md](demo/README.md)。
+## 产品结构
+
+「幸福驾校」三科目 + 幸福驾照：
+
+- **科目一 · 自我状态**：PERMA 15 题 · 7 点量表 → 五维雷达 → 7 天微训练 → 60 秒呼吸
+- **科目二 · 夫妻同行**：12 题行为锚点 → 科目报告 → 7 天陪练
+- **科目三 · 亲子上路**：12 题行为锚点 → 科目报告 → 7 天陪练
+- **幸福驾照**：两科完成后生成，含领证分/等级/扣分/复检路线
+
+## 文档
+
+完整 PRD、架构与交接文档在 **[`docs/`](docs/)**。接手请从 [docs/HANDOFF交接文档.md](docs/HANDOFF交接文档.md) 开始；AI 代理见根目录 [`AGENTS.md`](AGENTS.md)。
+
+## 开发
+
+```sh
+cd variants/paper
+node --test app.test.js       # 契约测试 11/11
+node --check app.js subjects.js
+```
+
+`git push` 到 `main` 即经 GitHub Pages 自动上线。
+
+## 目录说明
+
+| 目录 | 说明 |
+|---|---|
+| `variants/paper/` | **主版本**（纸境·幸福驾校三科目） |
+| `variants/mist/` `variants/nocturne/` | 历史 UI 方案（晨雾/夜航），留档对照，不维护 |
+| `demo/` | 最早的个人版 PERMA demo，留档 |
+| `docs/` | PRD、架构、交接文档 |
+
+> 本测评仅用于生活状态的自我观察，不替代专业支持或个性化建议。
